@@ -1,4 +1,4 @@
-import AbstractView from './abstract-view.js';
+import AbstractView from '../framework/view/abstract-view.js';
 
 function formatTime(date) {
   return date.toLocaleTimeString('en-GB', {hour: '2-digit', minute: '2-digit'});
