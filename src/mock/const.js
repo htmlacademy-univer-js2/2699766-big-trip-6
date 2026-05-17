@@ -7,8 +7,6 @@ const FilterType = {
   PAST: 'past',
 };
 
-export {EVENT_TYPES, DESTINATIONS, OFFERS_BY_TYPE, FilterType};
-
 const DESTINATIONS = [
   {
     id: 1,
@@ -65,4 +63,4 @@ const OFFERS_BY_TYPE = {
   restaurant: [],
 };
 
-export {EVENT_TYPES, DESTINATIONS, OFFERS_BY_TYPE};
+export {EVENT_TYPES, DESTINATIONS, OFFERS_BY_TYPE, FilterType};
