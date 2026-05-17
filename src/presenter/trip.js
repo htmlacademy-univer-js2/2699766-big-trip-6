@@ -3,6 +3,7 @@ import SortView from '../view/sort.js';
 import EventListView from '../view/event-list.js';
 import EventView from '../view/event.js';
 import EventEditView from '../view/event-edit.js';
+import EmptyView from '../view/empty.js';
 
 export default class TripPresenter {
   #container;
@@ -17,8 +18,13 @@ export default class TripPresenter {
     const points = this.#model.getPoints();
     const destinations = this.#model.getDestinations();
     const offersByType = this.#model.getOffersByType();
-    const eventList = new EventListView();
 
+    if (points.length === 0) {
+      render(new EmptyView(), this.#container);
+      return;
+    }
+
+    const eventList = new EventListView();
     render(new SortView(), this.#container);
     render(eventList, this.#container);
 
