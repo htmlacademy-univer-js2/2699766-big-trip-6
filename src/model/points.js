@@ -1,35 +1,41 @@
 export default class PointsModel {
-  constructor() {
-    this._points = [];
-    this._destinations = [];
-    this._offersByType = {};
-  }
+  #points = [];
+  #destinations = [];
+  #offersByType = {};
 
   setPoints(points) {
-    this._points = points;
+    this.#points = points;
   }
 
   setDestinations(destinations) {
-    this._destinations = destinations;
+    this.#destinations = destinations;
   }
 
   setOffersByType(offersByType) {
-    this._offersByType = offersByType;
+    this.#offersByType = offersByType;
   }
 
   getPoints() {
-    return this._points;
+    return this.#points;
   }
 
   getDestinations() {
-    return this._destinations;
+    return this.#destinations;
   }
 
   getOffersByType() {
-    return this._offersByType;
+    return this.#offersByType;
   }
 
   getDestinationById(id) {
-    return this._destinations.find((d) => d.id === id);
+    return this.#destinations.find((d) => d.id === id);
+  }
+
+  updatePoint(updatedPoint) {
+    const index = this.#points.findIndex((p) => p.id === updatedPoint.id);
+    if (index === -1) {
+      throw new Error('Can\'t update unexisting point');
+    }
+    this.#points[index] = updatedPoint;
   }
 }
