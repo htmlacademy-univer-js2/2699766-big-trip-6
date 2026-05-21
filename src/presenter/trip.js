@@ -1,4 +1,4 @@
-import {render, remove} from '../render.js';
+import {render} from '../render.js';
 import SortView, {SortType} from '../view/sort.js';
 import EventListView from '../view/event-list.js';
 import EmptyView from '../view/empty.js';
