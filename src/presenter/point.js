@@ -1,4 +1,4 @@
-import {render, replace} from '../render.js';
+import {render, replace, remove} from '../render.js';
 import EventView from '../view/event.js';
 import EventEditView from '../view/event-edit.js';
 
@@ -53,10 +53,38 @@ export default class PointPresenter {
     render(this.#eventView, this.#container);
   }
 
+  update(updatedPoint, updatedDestination) {
+    this.#point = updatedPoint;
+    this.#destination = updatedDestination;
+
+    const prevEventView = this.#eventView;
+
+    this.#eventView = new EventView(
+      this.#point,
+      this.#destination,
+      () => {
+        this.#onModeChange();
+        this.#replacePointWithForm();
+        document.addEventListener('keydown', this.#onEscKeydown);
+      },
+      () => {
+        this.#onDataChange({...this.#point, isFavorite: !this.#point.isFavorite});
+      }
+    );
+
+    replace(this.#eventView, prevEventView);
+    remove(prevEventView);
+  }
+
   resetView() {
     if (this.#eventEditView.element.parentElement) {
       this.#replaceFormWithPoint();
     }
+  }
+
+  destroy() {
+    remove(this.#eventView);
+    remove(this.#eventEditView);
   }
 
   #replacePointWithForm() {
