@@ -9,8 +9,8 @@
     "build": "webpack --mode production"
   },
   "browserslist": [
-  "last 2 versions",
-  "not dead"
+    "last 2 versions",
+    "not dead"
   ],
   "devDependencies": {
     "@babel/core": "7.21.4",
@@ -28,5 +28,8 @@
   },
   "engines": {
     "node": "20"
+  },
+  "dependencies": {
+    "flatpickr": "^4.6.13"
   }
 }

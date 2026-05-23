@@ -1,13 +1,19 @@
 import he from 'he';
+import dayjs from 'dayjs';
+import flatpickr from 'flatpickr';
+import 'flatpickr/dist/flatpickr.min.css';
 import AbstractStatefulView from '../framework/view/abstract-stateful-view.js';
 
 const EVENT_TYPES = ['taxi', 'bus', 'train', 'ship', 'drive', 'flight', 'check-in', 'sightseeing', 'restaurant'];
+const FLATPICKR_DATE_FORMAT = 'd/m/y H:i';
 
 export default class EventEditView extends AbstractStatefulView {
   #offersByType;
   #destinations;
   #onFormSubmit;
   #onRollupClick;
+  #datepickerFrom = null;
+  #datepickerTo = null;
 
   constructor(point, destination, offersByType, destinations, onFormSubmit, onRollupClick) {
     super();
@@ -94,10 +100,10 @@ export default class EventEditView extends AbstractStatefulView {
             </div>
             <div class="event__field-group event__field-group--time">
               <label class="visually-hidden" for="event-start-time-1">From</label>
-              <input class="event__input event__input--time" id="event-start-time-1" type="text" name="event-start-time" value="${dateFrom.toLocaleString('en-GB')}">
+              <input class="event__input event__input--time" id="event-start-time-1" type="text" name="event-start-time" value="${dayjs(dateFrom).format('DD/MM/YY HH:mm')}">
               &mdash;
               <label class="visually-hidden" for="event-end-time-1">To</label>
-              <input class="event__input event__input--time" id="event-end-time-1" type="text" name="event-end-time" value="${dateTo.toLocaleString('en-GB')}">
+              <input class="event__input event__input--time" id="event-end-time-1" type="text" name="event-end-time" value="${dayjs(dateTo).format('DD/MM/YY HH:mm')}">
             </div>
             <div class="event__field-group event__field-group--price">
               <label class="event__label" for="event-price-1">
@@ -124,19 +130,60 @@ export default class EventEditView extends AbstractStatefulView {
     this.element.querySelector('.event__rollup-btn').addEventListener('click', this.#onRollupClick);
     this.element.querySelector('.event__type-group').addEventListener('change', this.#onTypeChange);
     this.element.querySelector('.event__input--destination').addEventListener('change', this.#onDestinationChange);
+
+    this.#setDatepickers();
+  }
+
+  removeElement() {
+    super.removeElement();
+    this.#destroyDatepickers();
+  }
+
+  #setDatepickers() {
+    this.#destroyDatepickers();
+
+    this.#datepickerFrom = flatpickr(
+      this.element.querySelector('#event-start-time-1'),
+      {
+        enableTime: true,
+        dateFormat: FLATPICKR_DATE_FORMAT,
+        defaultDate: this._state.dateFrom,
+        onChange: ([date]) => this._setState({dateFrom: date}),
+      }
+    );
+
+    this.#datepickerTo = flatpickr(
+      this.element.querySelector('#event-end-time-1'),
+      {
+        enableTime: true,
+        dateFormat: FLATPICKR_DATE_FORMAT,
+        defaultDate: this._state.dateTo,
+        minDate: this._state.dateFrom,
+        onChange: ([date]) => this._setState({dateTo: date}),
+      }
+    );
+  }
+
+  #destroyDatepickers() {
+    if (this.#datepickerFrom) {
+      this.#datepickerFrom.destroy();
+      this.#datepickerFrom = null;
+    }
+    if (this.#datepickerTo) {
+      this.#datepickerTo.destroy();
+      this.#datepickerTo = null;
+    }
   }
 
   #onTypeChange = (evt) => {
-    const newType = evt.target.value;
     this.updateElement({
-      type: newType,
+      type: evt.target.value,
       offers: [],
     });
   };
 
   #onDestinationChange = (evt) => {
-    const newName = evt.target.value;
-    const newDestination = this.#destinations.find((d) => d.name === newName);
+    const newDestination = this.#destinations.find((d) => d.name === evt.target.value);
     if (newDestination) {
       this.updateElement({destinationId: newDestination.id});
     }

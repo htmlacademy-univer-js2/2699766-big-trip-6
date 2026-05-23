@@ -1,18 +1,23 @@
+import he from 'he';
+import dayjs from 'dayjs';
+import duration from 'dayjs/plugin/duration';
 import AbstractView from '../framework/view/abstract-view.js';
 
-function formatTime(date) {
-  return date.toLocaleTimeString('en-GB', {hour: '2-digit', minute: '2-digit'});
-}
+dayjs.extend(duration);
 
 function formatDate(date) {
-  return date.toLocaleDateString('en-GB', {month: 'short', day: 'numeric'}).toUpperCase();
+  return dayjs(date).format('MMM DD').toUpperCase();
+}
+
+function formatTime(date) {
+  return dayjs(date).format('HH:mm');
 }
 
 function formatDuration(dateFrom, dateTo) {
-  const diff = dateTo - dateFrom;
-  const minutes = Math.floor(diff / 60000) % 60;
-  const hours = Math.floor(diff / 3600000) % 24;
-  const days = Math.floor(diff / 86400000);
+  const diff = dayjs.duration(dayjs(dateTo).diff(dayjs(dateFrom)));
+  const days = Math.floor(diff.asDays());
+  const hours = diff.hours();
+  const minutes = diff.minutes();
 
   if (days > 0) {
     return `${String(days).padStart(2, '0')}D ${String(hours).padStart(2, '0')}H ${String(minutes).padStart(2, '0')}M`;
@@ -46,7 +51,7 @@ export default class EventView extends AbstractView {
 
     const offersHtml = offers.map(({title, price}) => `
       <li class="event__offer">
-        <span class="event__offer-title">${title}</span>
+        <span class="event__offer-title">${he.encode(title)}</span>
         &plus;&euro;&nbsp;
         <span class="event__offer-price">${price}</span>
       </li>`).join('');
@@ -54,16 +59,16 @@ export default class EventView extends AbstractView {
     return `
       <li class="trip-events__item">
         <div class="event">
-          <time class="event__date" datetime="${dateFrom.toISOString()}">${formatDate(dateFrom)}</time>
+          <time class="event__date" datetime="${dayjs(dateFrom).format('YYYY-MM-DD')}">${formatDate(dateFrom)}</time>
           <div class="event__type">
             <img class="event__type-icon" width="42" height="42" src="img/icons/${type}.png" alt="Event type icon">
           </div>
-          <h3 class="event__title">${type} ${name}</h3>
+          <h3 class="event__title">${type} ${he.encode(name)}</h3>
           <div class="event__schedule">
             <p class="event__time">
-              <time class="event__start-time" datetime="${dateFrom.toISOString()}">${formatTime(dateFrom)}</time>
+              <time class="event__start-time" datetime="${dayjs(dateFrom).format('YYYY-MM-DDTHH:mm')}">${formatTime(dateFrom)}</time>
               &mdash;
-              <time class="event__end-time" datetime="${dateTo.toISOString()}">${formatTime(dateTo)}</time>
+              <time class="event__end-time" datetime="${dayjs(dateTo).format('YYYY-MM-DDTHH:mm')}">${formatTime(dateTo)}</time>
             </p>
             <p class="event__duration">${formatDuration(dateFrom, dateTo)}</p>
           </div>
