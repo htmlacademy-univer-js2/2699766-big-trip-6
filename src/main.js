@@ -2,14 +2,13 @@ import TripPresenter from './presenter/trip.js';
 import FilterPresenter from './presenter/filter.js';
 import PointsModel from './model/points.js';
 import FilterModel from './model/filter.js';
-import {generatePoint} from './mock/points.js';
-import {DESTINATIONS, OFFERS_BY_TYPE} from './mock/const.js';
+import BigTripApiService from './big-trip-api-service.js';
 
-const pointsModel = new PointsModel();
-pointsModel.setPoints(Array.from({length: 4}, generatePoint));
-pointsModel.setDestinations(DESTINATIONS);
-pointsModel.setOffersByType(OFFERS_BY_TYPE);
+const END_POINT = 'https://24.objects.htmlacademy.pro/big-trip';
+const AUTHORIZATION = 'Basic eo0w590ik29889a';
 
+const apiService = new BigTripApiService(END_POINT, AUTHORIZATION);
+const pointsModel = new PointsModel(apiService);
 const filterModel = new FilterModel();
 
 const tripControlsFilters = document.querySelector('.trip-controls__filters');
@@ -21,6 +20,7 @@ const filterPresenter = new FilterPresenter(tripControlsFilters, filterModel, po
 
 filterPresenter.init();
 tripPresenter.init();
+pointsModel.init();
 
 newEventBtn.addEventListener('click', () => {
   newEventBtn.disabled = true;

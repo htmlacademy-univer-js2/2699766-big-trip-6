@@ -2,9 +2,12 @@ import {render, remove} from '../render.js';
 import SortView from '../view/sort.js';
 import EventListView from '../view/event-list.js';
 import EmptyView from '../view/empty.js';
+import LoadingView from '../view/loading.js';
 import PointPresenter from './point.js';
 import {UpdateType, UserAction, FilterType, DEFAULT_POINT, SortType} from '../const.js';
 import {filter} from '../utils/filter.js';
+
+const FAILED_LOAD_MESSAGE = 'Failed to load latest route information';
 
 let newPointId = 100;
 
@@ -17,7 +20,10 @@ export default class TripPresenter {
   #sortView = null;
   #eventListView = null;
   #emptyView = null;
+  #loadingView = null;
   #newEventView = null;
+  #isLoading = true;
+  #isError = false;
 
   constructor(container, pointsModel, filterModel) {
     this.#container = container;
@@ -29,7 +35,8 @@ export default class TripPresenter {
   }
 
   init() {
-    this.#renderBoard();
+    this.#loadingView = new LoadingView();
+    render(this.#loadingView, this.#container);
   }
 
   createPoint(onDestroy) {
@@ -99,6 +106,17 @@ export default class TripPresenter {
   }
 
   #renderBoard() {
+    if (this.#isLoading) {
+      return;
+    }
+
+    if (this.#isError) {
+      this.#emptyView = new EmptyView();
+      this.#emptyView.element.textContent = FAILED_LOAD_MESSAGE;
+      render(this.#emptyView, this.#container);
+      return;
+    }
+
     const points = this.#getFilteredPoints();
 
     if (points.length === 0) {
@@ -190,6 +208,17 @@ export default class TripPresenter {
         break;
       case UpdateType.MAJOR:
         this.#clearBoard(true);
+        this.#renderBoard();
+        break;
+      case UpdateType.INIT:
+        this.#isLoading = false;
+        remove(this.#loadingView);
+        this.#renderBoard();
+        break;
+      case UpdateType.ERROR:
+        this.#isLoading = false;
+        this.#isError = true;
+        remove(this.#loadingView);
         this.#renderBoard();
         break;
     }
