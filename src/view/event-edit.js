@@ -12,10 +12,12 @@ export default class EventEditView extends AbstractStatefulView {
   #destinations;
   #onFormSubmit;
   #onRollupClick;
+  #onDeleteClick;
+  #isNewEvent;
   #datepickerFrom = null;
   #datepickerTo = null;
 
-  constructor(point, destination, offersByType, destinations, onFormSubmit, onRollupClick) {
+  constructor(point, destination, offersByType, destinations, onFormSubmit, onRollupClick, onDeleteClick, isNewEvent = false) {
     super();
     this._state = {
       type: point.type,
@@ -30,6 +32,8 @@ export default class EventEditView extends AbstractStatefulView {
     this.#destinations = destinations;
     this.#onFormSubmit = onFormSubmit;
     this.#onRollupClick = onRollupClick;
+    this.#onDeleteClick = onDeleteClick;
+    this.#isNewEvent = isNewEvent;
 
     this._restoreHandlers();
   }
@@ -37,7 +41,6 @@ export default class EventEditView extends AbstractStatefulView {
   get template() {
     const {type, destinationId, offers, dateFrom, dateTo, basePrice} = this._state;
     const destination = this.#destinations.find((d) => d.id === destinationId);
-    const {name, description, pictures} = destination;
 
     const typeListHtml = EVENT_TYPES.map((t) => `
       <div class="event__type-item">
@@ -45,7 +48,7 @@ export default class EventEditView extends AbstractStatefulView {
         <label class="event__type-label event__type-label--${t}" for="event-type-${t}-1">${t}</label>
       </div>`).join('');
 
-    const destinationsHtml = this.#destinations.map(({name: n}) => `<option value="${he.encode(n)}"></option>`).join('');
+    const destinationsHtml = this.#destinations.map(({name}) => `<option value="${he.encode(name)}"></option>`).join('');
 
     const availableOffers = this.#offersByType[type] || [];
     const offersHtml = availableOffers.length ? `
@@ -64,17 +67,16 @@ export default class EventEditView extends AbstractStatefulView {
         </div>
       </section>` : '';
 
-    const photosHtml = pictures.map(({src, description: desc}) =>
-      `<img class="event__photo" src="${src}" alt="${he.encode(desc)}">`).join('');
-
-    const destinationHtml = `
+    const destinationHtml = destination ? `
       <section class="event__section event__section--destination">
         <h3 class="event__section-title event__section-title--destination">Destination</h3>
-        <p class="event__destination-description">${he.encode(description)}</p>
+        <p class="event__destination-description">${he.encode(destination.description)}</p>
         <div class="event__photos-container">
-          <div class="event__photos-tape">${photosHtml}</div>
+          <div class="event__photos-tape">
+            ${destination.pictures.map(({src, description: desc}) => `<img class="event__photo" src="${src}" alt="${he.encode(desc)}">`).join('')}
+          </div>
         </div>
-      </section>`;
+      </section>` : '';
 
     return `
       <li class="trip-events__item">
@@ -95,7 +97,7 @@ export default class EventEditView extends AbstractStatefulView {
             </div>
             <div class="event__field-group event__field-group--destination">
               <label class="event__label event__type-output" for="event-destination-1">${type}</label>
-              <input class="event__input event__input--destination" id="event-destination-1" type="text" name="event-destination" value="${he.encode(name)}" list="destination-list-1">
+              <input class="event__input event__input--destination" id="event-destination-1" type="text" name="event-destination" value="${destination ? he.encode(destination.name) : ''}" list="destination-list-1">
               <datalist id="destination-list-1">${destinationsHtml}</datalist>
             </div>
             <div class="event__field-group event__field-group--time">
@@ -112,10 +114,8 @@ export default class EventEditView extends AbstractStatefulView {
               <input class="event__input event__input--price" id="event-price-1" type="text" name="event-price" value="${basePrice}">
             </div>
             <button class="event__save-btn btn btn--blue" type="submit">Save</button>
-            <button class="event__reset-btn" type="reset">Delete</button>
-            <button class="event__rollup-btn" type="button">
-              <span class="visually-hidden">Open event</span>
-            </button>
+            <button class="event__reset-btn" type="reset">${this.#isNewEvent ? 'Cancel' : 'Delete'}</button>
+            ${this.#isNewEvent ? '' : '<button class="event__rollup-btn" type="button"><span class="visually-hidden">Open event</span></button>'}
           </header>
           <section class="event__details">
             ${offersHtml}
@@ -127,10 +127,19 @@ export default class EventEditView extends AbstractStatefulView {
 
   _restoreHandlers() {
     this.element.querySelector('.event--edit').addEventListener('submit', this.#onFormSubmit);
-    this.element.querySelector('.event__rollup-btn').addEventListener('click', this.#onRollupClick);
+    this.element.querySelector('.event__reset-btn').addEventListener('click', () => {
+      if (this.#isNewEvent) {
+        this.#onRollupClick();
+      } else {
+        this.#onDeleteClick(this._state);
+      }
+    });
+    if (!this.#isNewEvent) {
+      this.element.querySelector('.event__rollup-btn').addEventListener('click', this.#onRollupClick);
+    }
     this.element.querySelector('.event__type-group').addEventListener('change', this.#onTypeChange);
     this.element.querySelector('.event__input--destination').addEventListener('change', this.#onDestinationChange);
-
+    this.element.querySelector('.event__input--price').addEventListener('input', this.#onPriceInput);
     this.#setDatepickers();
   }
 
@@ -141,7 +150,6 @@ export default class EventEditView extends AbstractStatefulView {
 
   #setDatepickers() {
     this.#destroyDatepickers();
-
     this.#datepickerFrom = flatpickr(
       this.element.querySelector('#event-start-time-1'),
       {
@@ -151,7 +159,6 @@ export default class EventEditView extends AbstractStatefulView {
         onChange: ([date]) => this._setState({dateFrom: date}),
       }
     );
-
     this.#datepickerTo = flatpickr(
       this.element.querySelector('#event-end-time-1'),
       {
@@ -165,27 +172,27 @@ export default class EventEditView extends AbstractStatefulView {
   }
 
   #destroyDatepickers() {
-    if (this.#datepickerFrom) {
-      this.#datepickerFrom.destroy();
-      this.#datepickerFrom = null;
-    }
-    if (this.#datepickerTo) {
-      this.#datepickerTo.destroy();
-      this.#datepickerTo = null;
-    }
+    this.#datepickerFrom?.destroy();
+    this.#datepickerFrom = null;
+    this.#datepickerTo?.destroy();
+    this.#datepickerTo = null;
   }
 
   #onTypeChange = (evt) => {
-    this.updateElement({
-      type: evt.target.value,
-      offers: [],
-    });
+    this.updateElement({type: evt.target.value, offers: []});
   };
 
   #onDestinationChange = (evt) => {
     const newDestination = this.#destinations.find((d) => d.name === evt.target.value);
     if (newDestination) {
       this.updateElement({destinationId: newDestination.id});
+    } else {
+      evt.target.value = '';
     }
+  };
+
+  #onPriceInput = (evt) => {
+    evt.target.value = evt.target.value.replace(/\D/g, '');
+    this._setState({basePrice: Number(evt.target.value)});
   };
 }
