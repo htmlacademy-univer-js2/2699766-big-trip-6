@@ -195,4 +195,26 @@ export default class EventEditView extends AbstractStatefulView {
     evt.target.value = evt.target.value.replace(/\D/g, '');
     this._setState({basePrice: Number(evt.target.value)});
   };
+
+  setSaving() {
+    this.element.querySelector('.event__save-btn').disabled = true;
+    this.element.querySelector('.event__save-btn').textContent = 'Saving...';
+    this.element.querySelector('.event__reset-btn').disabled = true;
+  }
+
+  setDeleting() {
+    this.element.querySelector('.event__save-btn').disabled = true;
+    this.element.querySelector('.event__reset-btn').disabled = true;
+    this.element.querySelector('.event__reset-btn').textContent = 'Deleting...';
+  }
+
+  setAborting() {
+    const resetFormState = () => {
+      this.element.querySelector('.event__save-btn').disabled = false;
+      this.element.querySelector('.event__save-btn').textContent = 'Save';
+      this.element.querySelector('.event__reset-btn').disabled = false;
+      this.element.querySelector('.event__reset-btn').textContent = this.#isNewEvent ? 'Cancel' : 'Delete';
+    };
+    this.shake(resetFormState);
+  }
 }

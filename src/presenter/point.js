@@ -33,12 +33,16 @@ export default class PointPresenter {
         this.#replacePointWithForm();
         document.addEventListener('keydown', this.#onEscKeydown);
       },
-      () => {
-        this.#onUserAction(
-          UserAction.UPDATE_POINT,
-          UpdateType.PATCH,
-          {...this.#point, isFavorite: !this.#point.isFavorite}
-        );
+      async () => {
+        try {
+          await this.#onUserAction(
+            UserAction.UPDATE_POINT,
+            UpdateType.PATCH,
+            {...this.#point, isFavorite: !this.#point.isFavorite}
+          );
+        } catch {
+          this.#eventView.shake();
+        }
       }
     );
 
@@ -47,14 +51,23 @@ export default class PointPresenter {
       this.#destination,
       this.#offersByType,
       this.#destinations,
-      (evt) => {
+      async (evt) => {
         evt.preventDefault();
-        this.#onUserAction(UserAction.UPDATE_POINT, UpdateType.MINOR, this.#point);
-        this.#replaceFormWithPoint();
+        this.#eventEditView.setSaving();
+        try {
+          await this.#onUserAction(UserAction.UPDATE_POINT, UpdateType.MINOR, this.#point);
+        } catch {
+          this.#eventEditView.setAborting();
+        }
       },
       () => this.#replaceFormWithPoint(),
-      (point) => {
-        this.#onUserAction(UserAction.DELETE_POINT, UpdateType.MINOR, point);
+      async (point) => {
+        this.#eventEditView.setDeleting();
+        try {
+          await this.#onUserAction(UserAction.DELETE_POINT, UpdateType.MINOR, point);
+        } catch {
+          this.#eventEditView.setAborting();
+        }
       },
       false
     );
@@ -74,12 +87,16 @@ export default class PointPresenter {
         this.#replacePointWithForm();
         document.addEventListener('keydown', this.#onEscKeydown);
       },
-      () => {
-        this.#onUserAction(
-          UserAction.UPDATE_POINT,
-          UpdateType.PATCH,
-          {...this.#point, isFavorite: !this.#point.isFavorite}
-        );
+      async () => {
+        try {
+          await this.#onUserAction(
+            UserAction.UPDATE_POINT,
+            UpdateType.PATCH,
+            {...this.#point, isFavorite: !this.#point.isFavorite}
+          );
+        } catch {
+          this.#eventView.shake();
+        }
       }
     );
     replace(this.#eventView, prevEventView);

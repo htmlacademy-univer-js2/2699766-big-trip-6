@@ -9,8 +9,6 @@ import {filter} from '../utils/filter.js';
 
 const FAILED_LOAD_MESSAGE = 'Failed to load latest route information';
 
-let newPointId = 100;
-
 export default class TripPresenter {
   #container;
   #pointsModel;
@@ -64,15 +62,17 @@ export default class TripPresenter {
         destinations[0] ?? {id: null, name: '', description: '', pictures: []},
         offersByType,
         destinations,
-        (evt) => {
+        async (evt) => {
           evt.preventDefault();
-          this.#handleUserAction(UserAction.ADD_POINT, UpdateType.MINOR, {
-            ...defaultPoint,
-            id: newPointId++,
-          });
-          remove(this.#newEventView);
-          this.#newEventView = null;
-          onDestroy();
+          this.#newEventView.setSaving();
+          try {
+            await this.#handleUserAction(UserAction.ADD_POINT, UpdateType.MINOR, defaultPoint);
+            remove(this.#newEventView);
+            this.#newEventView = null;
+            onDestroy();
+          } catch {
+            this.#newEventView.setAborting();
+          }
         },
         () => {
           remove(this.#newEventView);
@@ -82,6 +82,7 @@ export default class TripPresenter {
             this.#renderEmpty();
           }
         },
+        () => {},
         true
       );
 
@@ -183,16 +184,16 @@ export default class TripPresenter {
     }
   }
 
-  #handleUserAction = (userAction, updateType, point) => {
+  #handleUserAction = async (userAction, updateType, point) => {
     switch (userAction) {
       case UserAction.UPDATE_POINT:
-        this.#pointsModel.updatePoint(updateType, point);
+        await this.#pointsModel.updatePoint(updateType, point);
         break;
       case UserAction.ADD_POINT:
-        this.#pointsModel.addPoint(updateType, point);
+        await this.#pointsModel.addPoint(updateType, point);
         break;
       case UserAction.DELETE_POINT:
-        this.#pointsModel.deletePoint(updateType, point);
+        await this.#pointsModel.deletePoint(updateType, point);
         break;
     }
   };
