@@ -1,6 +1,7 @@
 import {render, replace, remove} from '../render.js';
 import EventView from '../view/event.js';
 import EventEditView from '../view/event-edit.js';
+import {UserAction, UpdateType} from '../const.js';
 
 export default class PointPresenter {
   #container;
@@ -8,19 +9,18 @@ export default class PointPresenter {
   #destination;
   #offersByType;
   #destinations;
-  #onDataChange;
+  #onUserAction;
   #onModeChange;
-
   #eventView = null;
   #eventEditView = null;
 
-  constructor(container, point, destination, offersByType, destinations, onDataChange, onModeChange) {
+  constructor(container, point, destination, offersByType, destinations, onUserAction, onModeChange) {
     this.#container = container;
     this.#point = point;
     this.#destination = destination;
     this.#offersByType = offersByType;
     this.#destinations = destinations;
-    this.#onDataChange = onDataChange;
+    this.#onUserAction = onUserAction;
     this.#onModeChange = onModeChange;
   }
 
@@ -34,21 +34,30 @@ export default class PointPresenter {
         document.addEventListener('keydown', this.#onEscKeydown);
       },
       () => {
-        this.#onDataChange({...this.#point, isFavorite: !this.#point.isFavorite});
+        this.#onUserAction(
+          UserAction.UPDATE_POINT,
+          UpdateType.PATCH,
+          {...this.#point, isFavorite: !this.#point.isFavorite}
+        );
       }
     );
 
     this.#eventEditView = new EventEditView(
-      this.#point,
-      this.#destination,
-      this.#offersByType,
-      this.#destinations,
-      (evt) => {
-        evt.preventDefault();
-        this.#replaceFormWithPoint();
-      },
-      () => this.#replaceFormWithPoint()
-    );
+    this.#point,
+    this.#destination,
+    this.#offersByType,
+    this.#destinations,
+    (evt) => {
+      evt.preventDefault();
+      this.#onUserAction(UserAction.UPDATE_POINT, UpdateType.MINOR, this.#point);
+      this.#replaceFormWithPoint();
+    },
+    () => this.#replaceFormWithPoint(),
+    (point) => {
+      this.#onUserAction(UserAction.DELETE_POINT, UpdateType.MINOR, point);
+    },
+    false
+  );
 
     render(this.#eventView, this.#container);
   }
@@ -56,9 +65,7 @@ export default class PointPresenter {
   update(updatedPoint, updatedDestination) {
     this.#point = updatedPoint;
     this.#destination = updatedDestination;
-
     const prevEventView = this.#eventView;
-
     this.#eventView = new EventView(
       this.#point,
       this.#destination,
@@ -68,16 +75,19 @@ export default class PointPresenter {
         document.addEventListener('keydown', this.#onEscKeydown);
       },
       () => {
-        this.#onDataChange({...this.#point, isFavorite: !this.#point.isFavorite});
+        this.#onUserAction(
+          UserAction.UPDATE_POINT,
+          UpdateType.PATCH,
+          {...this.#point, isFavorite: !this.#point.isFavorite}
+        );
       }
     );
-
     replace(this.#eventView, prevEventView);
     remove(prevEventView);
   }
 
   resetView() {
-    if (this.#eventEditView.element.parentElement) {
+    if (this.#eventEditView?.element.parentElement) {
       this.#replaceFormWithPoint();
     }
   }

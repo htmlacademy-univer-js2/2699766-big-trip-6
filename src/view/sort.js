@@ -1,10 +1,5 @@
 import AbstractView from '../framework/view/abstract-view.js';
-
-const SortType = {
-  DAY: 'day',
-  TIME: 'time',
-  PRICE: 'price',
-};
+import {SortType} from '../const.js';
 
 export default class SortView extends AbstractView {
   #currentSort;
@@ -48,5 +43,3 @@ export default class SortView extends AbstractView {
       </form>`;
   }
 }
-
-export {SortType};
