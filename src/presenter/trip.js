@@ -1,9 +1,10 @@
-import {render, remove} from '../render.js';
+import {render, remove, RenderPosition} from '../render.js';
 import SortView from '../view/sort.js';
 import EventListView from '../view/event-list.js';
 import EmptyView from '../view/empty.js';
 import LoadingView from '../view/loading.js';
 import PointPresenter from './point.js';
+import TripInfoView from '../view/trip-info.js';
 import {UpdateType, UserAction, FilterType, DEFAULT_POINT, SortType} from '../const.js';
 import {filter} from '../utils/filter.js';
 
@@ -23,12 +24,14 @@ export default class TripPresenter {
   #newPointDestroyCallback = null;
   #isLoading = true;
   #isError = false;
+  #tripInfoView = null;
+  #tripMainElement = null;
 
   constructor(container, pointsModel, filterModel) {
     this.#container = container;
     this.#pointsModel = pointsModel;
     this.#filterModel = filterModel;
-
+    this.#tripMainElement = document.querySelector('.trip-main');
     this.#pointsModel.addObserver(this.#handleModelEvent);
     this.#filterModel.addObserver(this.#handleModelEvent);
   }
@@ -57,7 +60,7 @@ export default class TripPresenter {
 
     const destinations = this.#pointsModel.getDestinations();
     const offersByType = this.#pointsModel.getOffersByType();
-    const defaultPoint = {...DEFAULT_POINT, destinationId: destinations[0]?.id ?? null};
+    const defaultPoint = {...DEFAULT_POINT};
 
     import('../view/event-edit.js').then(({default: EventEditView}) => {
       this.#newEventView = new EventEditView(
@@ -117,12 +120,12 @@ export default class TripPresenter {
     }
   };
 
-#onNewEventEscKeydown = (evt) => {
-  if (evt.key === 'Escape') {
-    evt.preventDefault();
-    this.#closeNewEvent();
-  }
-};
+  #onNewEventEscKeydown = (evt) => {
+    if (evt.key === 'Escape') {
+      evt.preventDefault();
+      this.#closeNewEvent();
+    }
+  };
 
   #renderBoard() {
     if (this.#isLoading) {
@@ -147,6 +150,21 @@ export default class TripPresenter {
     this.#eventListView = new EventListView();
     render(this.#eventListView, this.#container);
     this.#renderPoints();
+  }
+
+  #renderTripInfo() {
+    if (this.#tripInfoView) {
+      remove(this.#tripInfoView);
+      this.#tripInfoView = null;
+    }
+
+    const points = this.#pointsModel.getPoints();
+    if (this.#isError || points.length === 0) {
+      return;
+    }
+
+    this.#tripInfoView = new TripInfoView(points);
+    render(this.#tripInfoView, this.#tripMainElement, RenderPosition.AFTERBEGIN);
   }
 
   #renderEmpty() {
@@ -217,25 +235,30 @@ export default class TripPresenter {
     switch (updateType) {
       case UpdateType.PATCH:
         this.#pointPresenters.get(point.id)?.update(point, this.#pointsModel.getDestinationById(point.destinationId));
+        this.#renderTripInfo();
         break;
       case UpdateType.MINOR:
         this.#clearBoard();
         this.#renderBoard();
+        this.#renderTripInfo();
         break;
       case UpdateType.MAJOR:
         this.#clearBoard(true);
         this.#renderBoard();
+        this.#renderTripInfo();
         break;
       case UpdateType.INIT:
         this.#isLoading = false;
         remove(this.#loadingView);
         this.#renderBoard();
+        this.#renderTripInfo();
         break;
       case UpdateType.ERROR:
         this.#isLoading = false;
         this.#isError = true;
         remove(this.#loadingView);
         this.#renderBoard();
+        this.#renderTripInfo();
         break;
     }
   };

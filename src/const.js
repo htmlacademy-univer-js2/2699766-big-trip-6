@@ -29,8 +29,8 @@ const DEFAULT_POINT = {
   type: 'flight',
   destinationId: null,
   offers: [],
-  dateFrom: new Date(),
-  dateTo: new Date(),
+  dateFrom: null,
+  dateTo: null,
   basePrice: 0,
   isFavorite: false,
 };
