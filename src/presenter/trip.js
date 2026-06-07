@@ -20,6 +20,7 @@ export default class TripPresenter {
   #emptyView = null;
   #loadingView = null;
   #newEventView = null;
+  #newPointDestroyCallback = null;
   #isLoading = true;
   #isError = false;
 
@@ -52,6 +53,8 @@ export default class TripPresenter {
       this.#emptyView = null;
     }
 
+    this.#newPointDestroyCallback = onDestroy;
+
     const destinations = this.#pointsModel.getDestinations();
     const offersByType = this.#pointsModel.getOffersByType();
     const defaultPoint = {...DEFAULT_POINT, destinationId: destinations[0]?.id ?? null};
@@ -62,30 +65,20 @@ export default class TripPresenter {
         destinations[0] ?? {id: null, name: '', description: '', pictures: []},
         offersByType,
         destinations,
-        async (evt) => {
-          evt.preventDefault();
+        async (point) => {
           this.#newEventView.setSaving();
           try {
-            await this.#handleUserAction(UserAction.ADD_POINT, UpdateType.MINOR, defaultPoint);
-            remove(this.#newEventView);
-            this.#newEventView = null;
-            onDestroy();
+            await this.#handleUserAction(UserAction.ADD_POINT, UpdateType.MINOR, point);
           } catch {
             this.#newEventView.setAborting();
           }
         },
-        () => {
-          remove(this.#newEventView);
-          this.#newEventView = null;
-          onDestroy();
-          if (this.#pointsModel.getPoints().length === 0) {
-            this.#renderEmpty();
-          }
-        },
+        this.#closeNewEvent,
         () => {},
         true
       );
 
+      document.addEventListener('keydown', this.#onNewEventEscKeydown);
       render(this.#newEventView, this.#eventListView.element, 'afterbegin');
     });
   }
@@ -105,6 +98,31 @@ export default class TripPresenter {
         return points.slice().sort((a, b) => a.dateFrom - b.dateFrom);
     }
   }
+
+  #destroyNewEvent() {
+    if (!this.#newEventView) {
+      return;
+    }
+    remove(this.#newEventView);
+    this.#newEventView = null;
+    document.removeEventListener('keydown', this.#onNewEventEscKeydown);
+    this.#newPointDestroyCallback?.();
+    this.#newPointDestroyCallback = null;
+  }
+
+  #closeNewEvent = () => {
+    this.#destroyNewEvent();
+    if (this.#pointsModel.getPoints().length === 0) {
+      this.#renderEmpty();
+    }
+  };
+
+#onNewEventEscKeydown = (evt) => {
+  if (evt.key === 'Escape') {
+    evt.preventDefault();
+    this.#closeNewEvent();
+  }
+};
 
   #renderBoard() {
     if (this.#isLoading) {
@@ -159,10 +177,7 @@ export default class TripPresenter {
   }
 
   #clearBoard(resetSort = false) {
-    if (this.#newEventView) {
-      remove(this.#newEventView);
-      this.#newEventView = null;
-    }
+    this.#destroyNewEvent();
     this.#pointPresenters.forEach((presenter) => presenter.destroy());
     this.#pointPresenters.clear();
 
@@ -226,10 +241,7 @@ export default class TripPresenter {
   };
 
   #handleModeChange = () => {
-    if (this.#newEventView) {
-      remove(this.#newEventView);
-      this.#newEventView = null;
-    }
+    this.#destroyNewEvent();
     this.#pointPresenters.forEach((presenter) => presenter.resetView());
   };
 

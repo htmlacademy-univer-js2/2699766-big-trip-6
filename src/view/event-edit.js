@@ -57,8 +57,7 @@ export default class EventEditView extends AbstractStatefulView {
         <div class="event__available-offers">
           ${availableOffers.map(({id, title, price}) => `
             <div class="event__offer-selector">
-              <input class="event__offer-checkbox visually-hidden" id="event-offer-${id}-1" type="checkbox" name="event-offer-${id}" ${offers.some((o) => o.id === id) ? 'checked' : ''}>
-              <label class="event__offer-label" for="event-offer-${id}-1">
+                <input class="event__offer-checkbox visually-hidden" id="event-offer-${id}-1" type="checkbox" name="event-offer-${id}" data-offer-id="${id}" ${offers.some((o) => o.id === id) ? 'checked' : ''}>              <label class="event__offer-label" for="event-offer-${id}-1">
                 <span class="event__offer-title">${he.encode(title)}</span>
                 &plus;&euro;&nbsp;
                 <span class="event__offer-price">${price}</span>
@@ -126,7 +125,7 @@ export default class EventEditView extends AbstractStatefulView {
   }
 
   _restoreHandlers() {
-    this.element.querySelector('.event--edit').addEventListener('submit', this.#onFormSubmit);
+    this.element.querySelector('.event--edit').addEventListener('submit', this.#formSubmitHandler);
     this.element.querySelector('.event__reset-btn').addEventListener('click', () => {
       if (this.#isNewEvent) {
         this.#onRollupClick();
@@ -138,6 +137,7 @@ export default class EventEditView extends AbstractStatefulView {
       this.element.querySelector('.event__rollup-btn').addEventListener('click', this.#onRollupClick);
     }
     this.element.querySelector('.event__type-group').addEventListener('change', this.#onTypeChange);
+    this.element.querySelector('.event__available-offers')?.addEventListener('change', this.#onOffersChange);
     this.element.querySelector('.event__input--destination').addEventListener('change', this.#onDestinationChange);
     this.element.querySelector('.event__input--price').addEventListener('input', this.#onPriceInput);
     this.#setDatepickers();
@@ -147,6 +147,24 @@ export default class EventEditView extends AbstractStatefulView {
     super.removeElement();
     this.#destroyDatepickers();
   }
+
+  #formSubmitHandler = (evt) => {
+    evt.preventDefault();
+    this.#onFormSubmit(this._state);
+  };
+
+
+  #onOffersChange = (evt) => {
+    if (!evt.target.classList.contains('event__offer-checkbox')) {
+      return;
+    }
+    const offerId = evt.target.dataset.offerId;
+    const availableOffers = this.#offersByType[this._state.type] || [];
+    const offers = evt.target.checked
+      ? [...this._state.offers, availableOffers.find((offer) => offer.id === offerId)]
+      : this._state.offers.filter((offer) => offer.id !== offerId);
+    this._setState({ offers });
+  };
 
   #setDatepickers() {
     this.#destroyDatepickers();
