@@ -72,7 +72,7 @@ export default class EventEditView extends AbstractStatefulView {
         <p class="event__destination-description">${he.encode(destination.description)}</p>
         <div class="event__photos-container">
           <div class="event__photos-tape">
-            ${destination.pictures.map(({src, description: desc}) => `<img class="event__photo" src="${src}" alt="${he.encode(desc)}">`).join('')}
+            ${destination.pictures.map(({src, description: desc}) => `<img class="event__photo" src="${he.encode(src)}" alt="${he.encode(desc)}">`).join('')}
           </div>
         </div>
       </section>` : '';
@@ -174,7 +174,10 @@ export default class EventEditView extends AbstractStatefulView {
         enableTime: true,
         dateFormat: FLATPICKR_DATE_FORMAT,
         defaultDate: this._state.dateFrom,
-        onChange: ([date]) => this._setState({dateFrom: date}),
+        onChange: ([date]) => {
+          this._setState({dateFrom: date});
+          this.#datepickerTo.set('minDate', date);
+        },
       }
     );
     this.#datepickerTo = flatpickr(

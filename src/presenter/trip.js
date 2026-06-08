@@ -7,8 +7,14 @@ import PointPresenter from './point.js';
 import TripInfoView from '../view/trip-info.js';
 import {UpdateType, UserAction, FilterType, DEFAULT_POINT, SortType} from '../const.js';
 import {filter} from '../utils/filter.js';
+import UiBlocker from '../framework/ui-blocker/ui-blocker.js';
 
 const FAILED_LOAD_MESSAGE = 'Failed to load latest route information';
+const TimeLimit = {
+  LOWER_LIMIT: 350,
+  UPPER_LIMIT: 1000,
+};
+
 
 export default class TripPresenter {
   #container;
@@ -218,16 +224,21 @@ export default class TripPresenter {
   }
 
   #handleUserAction = async (userAction, updateType, point) => {
-    switch (userAction) {
-      case UserAction.UPDATE_POINT:
-        await this.#pointsModel.updatePoint(updateType, point);
-        break;
-      case UserAction.ADD_POINT:
-        await this.#pointsModel.addPoint(updateType, point);
-        break;
-      case UserAction.DELETE_POINT:
-        await this.#pointsModel.deletePoint(updateType, point);
-        break;
+    this.#uiBlocker.block();
+    try {
+      switch (userAction) {
+        case UserAction.UPDATE_POINT:
+          await this.#pointsModel.updatePoint(updateType, point);
+          break;
+        case UserAction.ADD_POINT:
+          await this.#pointsModel.addPoint(updateType, point);
+          break;
+        case UserAction.DELETE_POINT:
+          await this.#pointsModel.deletePoint(updateType, point);
+          break;
+      }
+    } finally {
+      this.#uiBlocker.unblock();
     }
   };
 
@@ -276,4 +287,9 @@ export default class TripPresenter {
     this.#clearBoard();
     this.#renderBoard();
   };
+
+  #uiBlocker = new UiBlocker({
+  lowerLimit: TimeLimit.LOWER_LIMIT,
+  upperLimit: TimeLimit.UPPER_LIMIT,
+});
 }
