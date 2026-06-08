@@ -3,6 +3,11 @@ import EventView from '../view/event.js';
 import EventEditView from '../view/event-edit.js';
 import {UserAction, UpdateType} from '../const.js';
 
+const Mode = {
+  DEFAULT: 'DEFAULT',
+  EDITING: 'EDITING',
+};
+
 export default class PointPresenter {
   #container;
   #point;
@@ -13,6 +18,7 @@ export default class PointPresenter {
   #onModeChange;
   #eventView = null;
   #eventEditView = null;
+  #mode = Mode.DEFAULT;
 
   constructor(container, point, destination, offersByType, destinations, onUserAction, onModeChange) {
     this.#container = container;
@@ -51,11 +57,10 @@ export default class PointPresenter {
       this.#destination,
       this.#offersByType,
       this.#destinations,
-      async (evt) => {
-        evt.preventDefault();
+      async (point) => {
         this.#eventEditView.setSaving();
         try {
-          await this.#onUserAction(UserAction.UPDATE_POINT, UpdateType.MINOR, this.#point);
+          await this.#onUserAction(UserAction.UPDATE_POINT, UpdateType.MINOR, {...this.#point, ...point});
         } catch {
           this.#eventEditView.setAborting();
         }
@@ -64,7 +69,7 @@ export default class PointPresenter {
       async (point) => {
         this.#eventEditView.setDeleting();
         try {
-          await this.#onUserAction(UserAction.DELETE_POINT, UpdateType.MINOR, point);
+          await this.#onUserAction(UserAction.DELETE_POINT, UpdateType.MINOR, {...this.#point, ...point});
         } catch {
           this.#eventEditView.setAborting();
         }
@@ -104,7 +109,7 @@ export default class PointPresenter {
   }
 
   resetView() {
-    if (this.#eventEditView?.element.parentElement) {
+    if (this.#mode !== Mode.DEFAULT) {
       this.#replaceFormWithPoint();
     }
   }
@@ -112,15 +117,18 @@ export default class PointPresenter {
   destroy() {
     remove(this.#eventView);
     remove(this.#eventEditView);
+    document.removeEventListener('keydown', this.#onEscKeydown);
   }
 
   #replacePointWithForm() {
     replace(this.#eventEditView, this.#eventView);
+    this.#mode = Mode.EDITING;
   }
 
   #replaceFormWithPoint() {
     replace(this.#eventView, this.#eventEditView);
     document.removeEventListener('keydown', this.#onEscKeydown);
+    this.#mode = Mode.DEFAULT;
   }
 
   #onEscKeydown = (evt) => {

@@ -1,13 +1,20 @@
-import {render, remove} from '../render.js';
+import {render, remove, RenderPosition} from '../render.js';
 import SortView from '../view/sort.js';
 import EventListView from '../view/event-list.js';
 import EmptyView from '../view/empty.js';
 import LoadingView from '../view/loading.js';
 import PointPresenter from './point.js';
+import TripInfoView from '../view/trip-info.js';
 import {UpdateType, UserAction, FilterType, DEFAULT_POINT, SortType} from '../const.js';
 import {filter} from '../utils/filter.js';
+import UiBlocker from '../framework/ui-blocker/ui-blocker.js';
 
 const FAILED_LOAD_MESSAGE = 'Failed to load latest route information';
+const TimeLimit = {
+  LOWER_LIMIT: 350,
+  UPPER_LIMIT: 1000,
+};
+
 
 export default class TripPresenter {
   #container;
@@ -20,14 +27,17 @@ export default class TripPresenter {
   #emptyView = null;
   #loadingView = null;
   #newEventView = null;
+  #newPointDestroyCallback = null;
   #isLoading = true;
   #isError = false;
+  #tripInfoView = null;
+  #tripMainElement = null;
 
   constructor(container, pointsModel, filterModel) {
     this.#container = container;
     this.#pointsModel = pointsModel;
     this.#filterModel = filterModel;
-
+    this.#tripMainElement = document.querySelector('.trip-main');
     this.#pointsModel.addObserver(this.#handleModelEvent);
     this.#filterModel.addObserver(this.#handleModelEvent);
   }
@@ -52,9 +62,11 @@ export default class TripPresenter {
       this.#emptyView = null;
     }
 
+    this.#newPointDestroyCallback = onDestroy;
+
     const destinations = this.#pointsModel.getDestinations();
     const offersByType = this.#pointsModel.getOffersByType();
-    const defaultPoint = {...DEFAULT_POINT, destinationId: destinations[0]?.id ?? null};
+    const defaultPoint = {...DEFAULT_POINT};
 
     import('../view/event-edit.js').then(({default: EventEditView}) => {
       this.#newEventView = new EventEditView(
@@ -62,30 +74,20 @@ export default class TripPresenter {
         destinations[0] ?? {id: null, name: '', description: '', pictures: []},
         offersByType,
         destinations,
-        async (evt) => {
-          evt.preventDefault();
+        async (point) => {
           this.#newEventView.setSaving();
           try {
-            await this.#handleUserAction(UserAction.ADD_POINT, UpdateType.MINOR, defaultPoint);
-            remove(this.#newEventView);
-            this.#newEventView = null;
-            onDestroy();
+            await this.#handleUserAction(UserAction.ADD_POINT, UpdateType.MINOR, point);
           } catch {
             this.#newEventView.setAborting();
           }
         },
-        () => {
-          remove(this.#newEventView);
-          this.#newEventView = null;
-          onDestroy();
-          if (this.#pointsModel.getPoints().length === 0) {
-            this.#renderEmpty();
-          }
-        },
+        this.#closeNewEvent,
         () => {},
         true
       );
 
+      document.addEventListener('keydown', this.#onNewEventEscKeydown);
       render(this.#newEventView, this.#eventListView.element, 'afterbegin');
     });
   }
@@ -105,6 +107,31 @@ export default class TripPresenter {
         return points.slice().sort((a, b) => a.dateFrom - b.dateFrom);
     }
   }
+
+  #destroyNewEvent() {
+    if (!this.#newEventView) {
+      return;
+    }
+    remove(this.#newEventView);
+    this.#newEventView = null;
+    document.removeEventListener('keydown', this.#onNewEventEscKeydown);
+    this.#newPointDestroyCallback?.();
+    this.#newPointDestroyCallback = null;
+  }
+
+  #closeNewEvent = () => {
+    this.#destroyNewEvent();
+    if (this.#pointsModel.getPoints().length === 0) {
+      this.#renderEmpty();
+    }
+  };
+
+  #onNewEventEscKeydown = (evt) => {
+    if (evt.key === 'Escape') {
+      evt.preventDefault();
+      this.#closeNewEvent();
+    }
+  };
 
   #renderBoard() {
     if (this.#isLoading) {
@@ -129,6 +156,21 @@ export default class TripPresenter {
     this.#eventListView = new EventListView();
     render(this.#eventListView, this.#container);
     this.#renderPoints();
+  }
+
+  #renderTripInfo() {
+    if (this.#tripInfoView) {
+      remove(this.#tripInfoView);
+      this.#tripInfoView = null;
+    }
+
+    const points = this.#pointsModel.getPoints();
+    if (this.#isError || points.length === 0) {
+      return;
+    }
+
+    this.#tripInfoView = new TripInfoView(points);
+    render(this.#tripInfoView, this.#tripMainElement, RenderPosition.AFTERBEGIN);
   }
 
   #renderEmpty() {
@@ -159,10 +201,7 @@ export default class TripPresenter {
   }
 
   #clearBoard(resetSort = false) {
-    if (this.#newEventView) {
-      remove(this.#newEventView);
-      this.#newEventView = null;
-    }
+    this.#destroyNewEvent();
     this.#pointPresenters.forEach((presenter) => presenter.destroy());
     this.#pointPresenters.clear();
 
@@ -185,16 +224,21 @@ export default class TripPresenter {
   }
 
   #handleUserAction = async (userAction, updateType, point) => {
-    switch (userAction) {
-      case UserAction.UPDATE_POINT:
-        await this.#pointsModel.updatePoint(updateType, point);
-        break;
-      case UserAction.ADD_POINT:
-        await this.#pointsModel.addPoint(updateType, point);
-        break;
-      case UserAction.DELETE_POINT:
-        await this.#pointsModel.deletePoint(updateType, point);
-        break;
+    this.#uiBlocker.block();
+    try {
+      switch (userAction) {
+        case UserAction.UPDATE_POINT:
+          await this.#pointsModel.updatePoint(updateType, point);
+          break;
+        case UserAction.ADD_POINT:
+          await this.#pointsModel.addPoint(updateType, point);
+          break;
+        case UserAction.DELETE_POINT:
+          await this.#pointsModel.deletePoint(updateType, point);
+          break;
+      }
+    } finally {
+      this.#uiBlocker.unblock();
     }
   };
 
@@ -202,34 +246,36 @@ export default class TripPresenter {
     switch (updateType) {
       case UpdateType.PATCH:
         this.#pointPresenters.get(point.id)?.update(point, this.#pointsModel.getDestinationById(point.destinationId));
+        this.#renderTripInfo();
         break;
       case UpdateType.MINOR:
         this.#clearBoard();
         this.#renderBoard();
+        this.#renderTripInfo();
         break;
       case UpdateType.MAJOR:
         this.#clearBoard(true);
         this.#renderBoard();
+        this.#renderTripInfo();
         break;
       case UpdateType.INIT:
         this.#isLoading = false;
         remove(this.#loadingView);
         this.#renderBoard();
+        this.#renderTripInfo();
         break;
       case UpdateType.ERROR:
         this.#isLoading = false;
         this.#isError = true;
         remove(this.#loadingView);
         this.#renderBoard();
+        this.#renderTripInfo();
         break;
     }
   };
 
   #handleModeChange = () => {
-    if (this.#newEventView) {
-      remove(this.#newEventView);
-      this.#newEventView = null;
-    }
+    this.#destroyNewEvent();
     this.#pointPresenters.forEach((presenter) => presenter.resetView());
   };
 
@@ -241,4 +287,9 @@ export default class TripPresenter {
     this.#clearBoard();
     this.#renderBoard();
   };
+
+  #uiBlocker = new UiBlocker({
+    lowerLimit: TimeLimit.LOWER_LIMIT,
+    upperLimit: TimeLimit.UPPER_LIMIT,
+  });
 }
