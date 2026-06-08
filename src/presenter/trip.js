@@ -289,7 +289,7 @@ export default class TripPresenter {
   };
 
   #uiBlocker = new UiBlocker({
-  lowerLimit: TimeLimit.LOWER_LIMIT,
-  upperLimit: TimeLimit.UPPER_LIMIT,
-});
+    lowerLimit: TimeLimit.LOWER_LIMIT,
+    upperLimit: TimeLimit.UPPER_LIMIT,
+  });
 }
